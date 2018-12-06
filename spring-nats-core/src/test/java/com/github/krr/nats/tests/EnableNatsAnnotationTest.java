@@ -17,10 +17,11 @@
 
 package com.github.krr.nats.tests;
 
+import berlin.yuna.natsserver.logic.NatsServer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.krr.nats.annotations.EnableNats;
 import com.github.krr.nats.annotations.NatsListener;
-import com.github.krr.nats.config.EmbeddedNatsServerConfiguration;
+import com.github.krr.nats.config.NatsListenerAnnotationBeanPostProcessor;
 import com.github.krr.nats.config.NatsListenerEndpointRegistry;
 import com.github.krr.nats.connections.NatsCluster;
 import com.github.krr.nats.converters.BeanToByteArrayConverter;
@@ -30,6 +31,7 @@ import com.github.krr.nats.decorators.NatsConnection;
 import com.github.krr.nats.interfaces.NatsConnectionFactory;
 import com.github.krr.nats.interfaces.NatsEndpointListenerContainer;
 import com.github.krr.nats.interfaces.NatsMessageConverter;
+import com.github.krr.nats.test.config.EmbeddedNatsServerConfiguration;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import lombok.Data;
@@ -54,9 +56,6 @@ import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static com.github.krr.nats.annotations.NatsListener.NatsListenerType.SUBSCRIPTION;
-import static com.github.krr.nats.config.NatsListenerAnnotationBeanPostProcessor.NATS_ENDPOINT_LISTENER_REGISTRY_BEAN;
-
 /**
  * <Description>
  *
@@ -75,8 +74,9 @@ public class EnableNatsAnnotationTest {
     public void mustProcessNatsListenersWhenAnnotatedWithEnableNatsAnnotation() {
 
       Assert.assertNotNull(applicationContext);
-      NatsListenerEndpointRegistry registry = applicationContext.getBean(NATS_ENDPOINT_LISTENER_REGISTRY_BEAN,
-                                                                         NatsListenerEndpointRegistry.class);
+      NatsListenerEndpointRegistry registry = applicationContext.getBean(
+          NatsListenerAnnotationBeanPostProcessor.NATS_ENDPOINT_LISTENER_REGISTRY_BEAN,
+          NatsListenerEndpointRegistry.class);
       Assert.assertNotNull(registry);
       MultiValueMap<NatsListener, NatsEndpointListenerContainer> natsListenerMap = registry.getNatsListenerMap();
       Assert.assertEquals(natsListenerMap.size(), 2);
@@ -99,8 +99,8 @@ public class EnableNatsAnnotationTest {
       Assert.assertNotNull(applicationContext);
       CountDownLatch latch = applicationContext.getBean("latch1", CountDownLatch.class);
       Assert.assertNotNull(latch);
-      NatsConnectionFactory connectionFactory = applicationContext .getBean("natsConnectionFactory",
-                                                                            NatsConnectionFactory.class);
+      NatsConnectionFactory connectionFactory = applicationContext.getBean("natsConnectionFactory",
+                                                                           NatsConnectionFactory.class);
       Assert.assertNotNull(connectionFactory);
       NatsConnection connection = connectionFactory.getConnection("TWDNSCF::mustInvokeSubscriberWhenMessageIsPublishedToXYZTopic");
       Assert.assertNotNull(connection);
@@ -163,6 +163,13 @@ public class EnableNatsAnnotationTest {
                              new BeanToByteArrayConverter<>());
       }
 
+      @SuppressWarnings("unused")
+      @Bean
+      public NatsCluster natsCluster(NatsServer natsServer) {
+        String natsHosts = "localhost:".concat(String.valueOf(natsServer.port()));
+        return new NatsCluster(new String[]{natsHosts});
+      }
+
     }
 
     @SuppressWarnings("WeakerAccess")
@@ -185,14 +192,14 @@ public class EnableNatsAnnotationTest {
         this.latch2 = latch2;
       }
 
-      @NatsListener(topic = "xyz", type = SUBSCRIPTION, durable = false)
+      @NatsListener(topic = "xyz", type = NatsListener.NatsListenerType.SUBSCRIPTION, durable = false)
       public String method1(String input) {
         Assert.assertEquals(input, randomInputString);
         latch1.countDown();
         return "hello";
       }
 
-      @NatsListener(topic = "abc", type = SUBSCRIPTION, durable = false)
+      @NatsListener(topic = "abc", type = NatsListener.NatsListenerType.SUBSCRIPTION, durable = false)
       public void method2(TestBean input) {
         Assert.assertEquals(input, testBean);
         latch2.countDown();
@@ -200,6 +207,7 @@ public class EnableNatsAnnotationTest {
 
     }
 
+    @SuppressWarnings("unused")
     @Data
     @RequiredArgsConstructor
     public static class TestBean {
@@ -208,7 +216,7 @@ public class EnableNatsAnnotationTest {
       private String randomString;
 
       public TestBean() {
-
+        // need this for Jackson
       }
 
     }

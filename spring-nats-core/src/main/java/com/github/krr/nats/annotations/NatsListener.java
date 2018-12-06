@@ -17,15 +17,12 @@
 
 package com.github.krr.nats.annotations;
 
-import com.github.krr.nats.interfaces.NatsMessageConverter;
-import com.github.krr.nats.interfaces.NatsConnectionFactory;
 import com.github.krr.nats.listeners.AbstractNatsEndpointListenerContainer;
 import com.github.krr.nats.listeners.DurableSubscriberNatsEndpointListenerContainer;
 import com.github.krr.nats.listeners.SubscriptionNatsEndpointListenerContainer;
 
 import java.lang.annotation.*;
 import java.lang.reflect.Method;
-import java.util.List;
 
 /**
  *
@@ -40,40 +37,35 @@ import java.util.List;
 @Repeatable(NatsListeners.class)
 public @interface NatsListener {
 
+  String DEFAULT_NATS_SERVER_CONNECTION_FACTORY_BEAN_NAME = "natsServerConnectionFactory";
+
   enum NatsListenerType {
     SUBSCRIPTION {
       @Override
       public AbstractNatsEndpointListenerContainer listenerContainer(NatsListener natsListener,
-                                                                     NatsConnectionFactory connectionFactory,
-                                                                     Object bean, Method method,
-                                                                     List<NatsMessageConverter> converters) {
-        if(connectionFactory.isStreamingServer()) {
-          return new DurableSubscriberNatsEndpointListenerContainer(connectionFactory, bean, method,
-                                                                    converters);
+                                                                     Object bean, Method method) {
+        if(natsListener.durable()) {
+          return new DurableSubscriberNatsEndpointListenerContainer(natsListener, bean, method);
         }
-        return new SubscriptionNatsEndpointListenerContainer(connectionFactory, bean, method, converters);
+        return new SubscriptionNatsEndpointListenerContainer(natsListener, bean, method);
       }
     },
     QUEUE {
       @Override
       public AbstractNatsEndpointListenerContainer listenerContainer(NatsListener natsListener,
-                                                                     NatsConnectionFactory connectionFactory,
-                                                                     Object bean, Method method,
-                                                                     List<NatsMessageConverter> converters) {
-        return new SubscriptionNatsEndpointListenerContainer(connectionFactory, bean, method, converters);
+                                                                     Object bean, Method method) {
+        return new SubscriptionNatsEndpointListenerContainer(natsListener, bean, method);
       }
     };
 
     public abstract AbstractNatsEndpointListenerContainer listenerContainer(NatsListener natsListener,
-                                                                            NatsConnectionFactory connectionFactory,
-                                                                            Object bean, Method method,
-                                                                            List<NatsMessageConverter> converters);
+                                                                            Object bean, Method method);
   }
 
   /**
    * A bean name or SpEl expression for the connection factory
    */
-  String natsConnectionFactory() default "natsConnectionFactory";
+  String natsConnectionFactory() default DEFAULT_NATS_SERVER_CONNECTION_FACTORY_BEAN_NAME;
 
   /**
    * The type of listener

@@ -20,9 +20,6 @@ package com.github.krr.nats.config;
 import com.github.krr.nats.annotations.NatsHandler;
 import com.github.krr.nats.annotations.NatsListener;
 import com.github.krr.nats.annotations.NatsListeners;
-import com.github.krr.nats.interfaces.NatsConnectionFactory;
-import com.github.krr.nats.interfaces.NatsEndpointListenerContainer;
-import com.github.krr.nats.interfaces.NatsMessageConverter;
 import com.github.krr.nats.listeners.AbstractNatsEndpointListenerContainer;
 import com.github.krr.nats.listeners.NatsEndpointListener;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +28,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.aop.framework.Advised;
 import org.springframework.aop.support.AopUtils;
 import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.*;
+import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.BeanFactoryAware;
+import org.springframework.beans.factory.DisposableBean;
 import org.springframework.beans.factory.config.*;
 import org.springframework.context.ApplicationListener;
 import org.springframework.context.event.ContextRefreshedEvent;
@@ -40,7 +39,6 @@ import org.springframework.core.MethodIntrospector;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.AnnotatedElementUtils;
 import org.springframework.core.annotation.AnnotationUtils;
-import org.springframework.util.CollectionUtils;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 
@@ -48,6 +46,7 @@ import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static com.github.krr.nats.annotations.NatsListener.DEFAULT_NATS_SERVER_CONNECTION_FACTORY_BEAN_NAME;
 import static org.springframework.beans.factory.config.ConfigurableBeanFactory.SCOPE_SINGLETON;
 
 /**
@@ -57,8 +56,10 @@ import static org.springframework.beans.factory.config.ConfigurableBeanFactory.S
  */
 @Slf4j
 public class NatsListenerAnnotationBeanPostProcessor implements BeanPostProcessor, Ordered, BeanFactoryAware,
-                                                                SmartInitializingSingleton, DisposableBean,
-                                                                ApplicationListener<ContextRefreshedEvent> {
+                                                                ApplicationListener<ContextRefreshedEvent>,
+                                                                DisposableBean {
+
+  public static final String DEFAULT_NATS_MESSAGE_CONVERTERS_BEAN_NAME = "natsMessageConverters";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(NatsListenerAnnotationBeanPostProcessor.class);
 
@@ -83,13 +84,9 @@ public class NatsListenerAnnotationBeanPostProcessor implements BeanPostProcesso
       this.resolver = configurableListableBeanFactory.getBeanExpressionResolver();
       configurableListableBeanFactory.registerSingleton(NATS_ENDPOINT_LISTENER_REGISTRY_BEAN, endpointRegistry);
       this.expressionContext = new BeanExpressionContext(configurableListableBeanFactory,
-                                                         configurableListableBeanFactory.getRegisteredScope(SCOPE_SINGLETON));
+                                                         configurableListableBeanFactory
+                                                             .getRegisteredScope(SCOPE_SINGLETON));
     }
-  }
-
-  @Override
-  public void afterSingletonsInstantiated() {
-
   }
 
   @Override
@@ -111,13 +108,16 @@ public class NatsListenerAnnotationBeanPostProcessor implements BeanPostProcesso
       final List<Method> multiMethods = new ArrayList<>();
       Map<Method, Set<NatsListener>> annotatedMethods = MethodIntrospector.selectMethods(targetClass,
                                                                                          (MethodIntrospector.MetadataLookup<Set<NatsListener>>) method -> {
-                                                                                           Set<NatsListener> listenerMethods = findListenerAnnotations(method);
-                                                                                           return (!listenerMethods.isEmpty() ? listenerMethods : null);
+                                                                                           Set<NatsListener> listenerMethods = findListenerAnnotations(
+                                                                                               method);
+                                                                                           return (!listenerMethods
+                                                                                               .isEmpty() ? listenerMethods : null);
                                                                                          });
       if (hasClassLevelListeners) {
         Set<Method> methodsWithHandler = MethodIntrospector.selectMethods(targetClass,
                                                                           (ReflectionUtils.MethodFilter) method ->
-                                                                              AnnotationUtils.findAnnotation(method, NatsHandler.class) != null);
+                                                                              AnnotationUtils.findAnnotation(method,
+                                                                                                             NatsHandler.class) != null);
         multiMethods.addAll(methodsWithHandler);
       }
       if (annotatedMethods.isEmpty()) {
@@ -136,7 +136,7 @@ public class NatsListenerAnnotationBeanPostProcessor implements BeanPostProcesso
         }
         if (LOGGER.isDebugEnabled()) {
           LOGGER.debug(annotatedMethods.size() + " @NatsListener methods processed on bean '"
-                            + beanName + "': " + annotatedMethods);
+                       + beanName + "': " + annotatedMethods);
         }
       }
       if (hasClassLevelListeners) {
@@ -182,54 +182,25 @@ public class NatsListenerAnnotationBeanPostProcessor implements BeanPostProcesso
     NatsEndpointListener endpointListener = new NatsEndpointListener(method, natsListener, bean, beanName);
     endpointListener.setBeanFactory(this.beanFactory);
     String containerFactoryBeanName = resolveExpressionAsString(natsListener.natsConnectionFactory(),
-                                                                "natsConnectionFactory");
+                                                                DEFAULT_NATS_SERVER_CONNECTION_FACTORY_BEAN_NAME);
 
-    List<NatsMessageConverter> converters = getNatsMessageConverters();
-    if(CollectionUtils.isEmpty(converters)) {
-      throw new IllegalStateException("No converters registered for serializing or deserializing messages."  +
-                                      "Expecting List<NatsMessageConverter> types in application context.");
-    }
+//    List<NatsMessageConverter> converters = getNatsMessageConverters();
+//    if(CollectionUtils.isEmpty(converters)) {
+//      throw new IllegalStateException("No converters registered for serializing or deserializing messages."  +
+//                                      "Expecting List<NatsMessageConverter> types in application context.");
+//    }
     if (StringUtils.hasText(containerFactoryBeanName)) {
-      NatsConnectionFactory cfBean = this.beanFactory.getBean(containerFactoryBeanName,
-                                                              NatsConnectionFactory.class);
       AbstractNatsEndpointListenerContainer container = natsListener.type().listenerContainer(natsListener,
-                                                                                              cfBean,
-                                                                                              bean, methodToUse, converters);
+                                                                                              bean, methodToUse);
       endpointRegistry.registerListener(natsListener, container);
+      if (beanFactory instanceof ConfigurableListableBeanFactory) {
+        ((ConfigurableListableBeanFactory) beanFactory).registerSingleton(container.getClientName(), container);
+      }
     }
     else {
       throw new IllegalStateException("No container factory bean with name " + containerFactoryBeanName +
                                       " exists in application context");
     }
-  }
-
-  @SuppressWarnings({"unchecked", "WeakerAccess"})
-  public List<NatsMessageConverter> getNatsMessageConverters() {
-    String converterBeanName = getConverterBeanName();
-
-    try {
-      return (List<NatsMessageConverter>) beanFactory.getBean(converterBeanName);
-    }
-    catch (Exception e){
-      throw new IllegalStateException("Could not find converter bean with name [" + converterBeanName +
-                                      "].  A bean with name 'converters' or " +
-                                      " a bean name specified by the 'converterBeanName' bean must be present " +
-                                      " in the application context.");
-    }
-  }
-
-  private String getConverterBeanName() {
-
-    try {
-      return beanFactory.getBean("converterBeanName", String.class);
-    }
-    catch (NoSuchBeanDefinitionException e) {
-      // this is ok since this is an optional bean
-    }
-    catch(Exception e) {
-      throw new IllegalStateException(e);
-    }
-    return "converters";
   }
 
   private String resolveExpressionAsString(String value, String attribute) {
@@ -251,6 +222,7 @@ public class NatsListenerAnnotationBeanPostProcessor implements BeanPostProcesso
 
   /**
    * Resolve the specified value if possible.
+   *
    * @param value the value to resolve
    * @return the resolved value
    * @see ConfigurableBeanFactory#resolveEmbeddedValue
@@ -261,6 +233,7 @@ public class NatsListenerAnnotationBeanPostProcessor implements BeanPostProcesso
     }
     return value;
   }
+
   private void processMultiMethodListeners(Collection<NatsListener> classLevelListeners, List<Method> multiMethods,
                                            Object bean, String beanName) {
 //    List<Method> checkedMethods = new ArrayList<Method>();
@@ -321,8 +294,13 @@ public class NatsListenerAnnotationBeanPostProcessor implements BeanPostProcesso
     // after the context is refreshed - start all the listeners.
     log.error("Starting all listeners");
     endpointRegistry.getNatsListenerMap().forEach((key, value) -> {
-      log.error("Starting listeners for {}", key);
-      value.forEach(v -> v.start(key));
+      value.forEach(v -> {
+        if (v instanceof AbstractNatsEndpointListenerContainer) {
+          AbstractNatsEndpointListenerContainer v1 = (AbstractNatsEndpointListenerContainer) v;
+          log.error("Starting listener {}", v1.getClientName());
+          v1.onApplicationEvent(event);
+        }
+      });
     });
   }
 
@@ -331,7 +309,18 @@ public class NatsListenerAnnotationBeanPostProcessor implements BeanPostProcesso
     log.error("Shutting down all listeners");
     endpointRegistry.getNatsListenerMap().forEach((key, value) -> {
       log.error("Shutting down listener for {}", key);
-      value.forEach(NatsEndpointListenerContainer::stop);
+      value.forEach(v -> {
+        if (v instanceof AbstractNatsEndpointListenerContainer) {
+          AbstractNatsEndpointListenerContainer v1 = (AbstractNatsEndpointListenerContainer) v;
+          log.error("Shutting down {}", v1.getClientName());
+          try {
+            v1.destroy();
+          }
+          catch (Exception e) {
+            log.error("Error shutting down listener {}", v1.getClientName(), e);
+          }
+        }
+      });
     });
   }
 }

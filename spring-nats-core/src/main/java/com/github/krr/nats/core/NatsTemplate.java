@@ -20,6 +20,7 @@ package com.github.krr.nats.core;
 import com.github.krr.nats.decorators.NatsConnection;
 import com.github.krr.nats.exceptions.MessageConversionException;
 import com.github.krr.nats.exceptions.MessagePublishingException;
+import com.github.krr.nats.interfaces.NatsConnectionFactory;
 import com.github.krr.nats.interfaces.NatsMessageConverter;
 import com.github.krr.nats.interfaces.NatsOperations;
 import com.github.krr.nats.interfaces.RequestOptions;
@@ -45,15 +46,19 @@ public class NatsTemplate implements NatsOperations {
   /**
    * The underlying Nats connection over which the messages are sent
    */
-  private final NatsConnection natsConnection;
+  private final NatsConnectionFactory natsConnectionFactory;
 
   /**
    * A list of converters used to convert messages to byte []
    */
   private final List<NatsMessageConverter> messageConverters;
 
-  public NatsTemplate(NatsConnection natsConnection, List<NatsMessageConverter> messageConverters) {
-    this.natsConnection = natsConnection;
+  private final String clientName;
+
+  public NatsTemplate(NatsConnectionFactory natsConnectionFactory, String clientName,
+                      List<NatsMessageConverter> messageConverters) {
+    this.natsConnectionFactory = natsConnectionFactory;
+    this.clientName = clientName;
     this.messageConverters = messageConverters;
   }
 
@@ -62,8 +67,12 @@ public class NatsTemplate implements NatsOperations {
                                   Class<O> returnClass) throws MessageConversionException {
     // convert messages to byte arrays
     byte [] input = convertMessage(request, options);
-    byte[] response = natsConnection.requestResponse(subject, input);
+    byte[] response = natsConnection().requestResponse(subject, input);
     return convertMessage(response, returnClass);
+  }
+
+  private NatsConnection natsConnection() {
+   return natsConnectionFactory.getConnection(clientName);
   }
 
   @SuppressWarnings("unchecked")
@@ -96,6 +105,6 @@ public class NatsTemplate implements NatsOperations {
   public <I> void publish(String topic, I request,
                           RequestOptions options) throws MessagePublishingException, MessageConversionException {
     byte [] input = convertMessage(request, options);
-    natsConnection.publish(topic, input);
+    natsConnectionFactory.getConnection(clientName).publish(topic, input);
   }
 }

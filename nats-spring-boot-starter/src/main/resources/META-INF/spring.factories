@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.github.krr.springboot.autoconfigure.nats.NatsAutoConfiguration

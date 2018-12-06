@@ -3,8 +3,6 @@ package com.github.krr.nats.listeners;
 import com.github.krr.nats.annotations.NatsListener;
 import com.github.krr.nats.connections.StreamingNatsConnection;
 import com.github.krr.nats.exceptions.MessageSubscriptionException;
-import com.github.krr.nats.interfaces.NatsMessageConverter;
-import com.github.krr.nats.interfaces.NatsConnectionFactory;
 import io.nats.streaming.StreamingConnection;
 import io.nats.streaming.Subscription;
 import io.nats.streaming.SubscriptionOptions;
@@ -27,14 +25,12 @@ public class DurableSubscriberNatsEndpointListenerContainer extends Subscription
 
   private List<Subscription> subscriptions = new ArrayList<>();
 
-  public DurableSubscriberNatsEndpointListenerContainer(NatsConnectionFactory connectionFactory,
-                                                        Object bean, Method method,
-                                                        List<NatsMessageConverter> converters) {
-    super(connectionFactory, bean, method, converters);
+  public DurableSubscriberNatsEndpointListenerContainer(NatsListener natsListener, Object bean, Method method) {
+    super(natsListener, bean, method);
   }
 
   @Override
-  public void start(NatsListener natsListener) {
+  public void start() {
     SubscriptionOptions.Builder optionsBuilder = new SubscriptionOptions.Builder();
     if (durable) {
       if (StringUtils.isEmpty(durableName)) {
@@ -43,7 +39,7 @@ public class DurableSubscriberNatsEndpointListenerContainer extends Subscription
       optionsBuilder.durableName(durableName);
     }
     // set other options here.
-    StreamingNatsConnection connWrapper = (StreamingNatsConnection) connectionFactory.getConnection(getClientName(natsListener));
+    StreamingNatsConnection connWrapper = (StreamingNatsConnection) getConnectionFactory().getConnection(clientName);
     StreamingConnection connection = connWrapper.getStreamingConnection();
     try {
       Subscription subscription = connection.subscribe(natsListener.topic(), msg -> {

@@ -1,8 +1,8 @@
 package com.github.krr.nats.factory;
 
-import com.github.krr.nats.connections.NatsCluster;
 import com.github.krr.nats.connections.NatsConnectionImpl;
 import com.github.krr.nats.decorators.NatsConnection;
+import com.github.krr.nats.connections.NatsCluster;
 import com.github.krr.nats.exceptions.NatsServerConnectionException;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
@@ -38,12 +38,21 @@ public class NatsConnectionFactoryImpl extends AbstractNatsConnectionFactory {
   }
 
   protected Connection getUnderlyingConnection(String clientName) {
-    return connectionMap.get(clientName).getConnection();
+    return getNatsConnection(clientName, getOptionsFromConnectionOptions()).getConnection();
   }
+
   @Override
   public NatsConnection getConnection(String clientName) {
+    Options options = getOptionsFromConnectionOptions();
+    NatsConnection connection = getNatsConnection(clientName, options);
+    afterConnect(connection);
+    return connection;
+  }
+
+  private Options getOptionsFromConnectionOptions() {
     Options.Builder builder = new Options.Builder();
-    builder.servers(natsCluster.getHosts()).errorListener(connectionOptions.getErrorListener())
+    builder.servers(natsCluster.getHosts())
+           .errorListener(connectionOptions.getErrorListener())
            .connectionListener(connectionOptions.getConnectionListener())
            .connectionName(connectionOptions.getConnectionName())
            .connectionTimeout(connectionOptions.getConnectionTimeout());
@@ -51,7 +60,11 @@ public class NatsConnectionFactoryImpl extends AbstractNatsConnectionFactory {
     beforeOptionsBuild(builder);
     Options options = builder.build();
     beforeConnect(options);
-    NatsConnection connection = connectionMap.computeIfAbsent(clientName, k -> {
+    return options;
+  }
+
+  private NatsConnectionImpl getNatsConnection(String clientName, Options options) {
+    return connectionMap.computeIfAbsent(clientName, k -> {
       try {
         return new NatsConnectionImpl(Nats.connect(options));
       }
@@ -60,8 +73,6 @@ public class NatsConnectionFactoryImpl extends AbstractNatsConnectionFactory {
         throw new NatsServerConnectionException("Could not connect to NatsServer:" + options.toString(), e);
       }
     });
-    afterConnect(connection);
-    return connection;
   }
 
   @Override

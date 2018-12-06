@@ -8,23 +8,22 @@ import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.testng.AbstractTestNGSpringContextTests;
+import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertNotNull;
 
 @ContextConfiguration
 public class ClassExistsConditionTest extends AbstractTestNGSpringContextTests {
 
   @Test
   public void mustMatchWhenAllRuntimeDependenciesAreAvailable() {
-    assertNotNull(applicationContext, "ApplicationContext cannot be null");
+    Assert.assertNotNull(applicationContext, "ApplicationContext cannot be null");
     Object bean = applicationContext.getBean(ClassWithValidRuntimeDependency.class);
-    assertNotNull(bean);
+    Assert.assertNotNull(bean);
   }
 
   @Test(expectedExceptions = NoSuchBeanDefinitionException.class)
   public void mustNotMatchWhenRuntimeDependencyIsNotAvailable() {
-    assertNotNull(applicationContext, "ApplicationContext cannot be null");
+    Assert.assertNotNull(applicationContext, "ApplicationContext cannot be null");
     applicationContext.getBean(ClassWithoutValidRuntimeDependency.class);
   }
 

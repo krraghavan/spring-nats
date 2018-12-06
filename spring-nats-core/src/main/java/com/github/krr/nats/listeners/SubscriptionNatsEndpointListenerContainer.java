@@ -2,8 +2,6 @@ package com.github.krr.nats.listeners;
 
 import com.github.krr.nats.annotations.NatsListener;
 import com.github.krr.nats.connections.NatsConnectionImpl;
-import com.github.krr.nats.interfaces.NatsConnectionFactory;
-import com.github.krr.nats.interfaces.NatsMessageConverter;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import lombok.Data;
@@ -12,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -27,16 +24,14 @@ public class SubscriptionNatsEndpointListenerContainer extends AbstractNatsEndpo
 
   private Map<String, Dispatcher> dispatchers = new ConcurrentHashMap<>();
 
-  public SubscriptionNatsEndpointListenerContainer(NatsConnectionFactory connectionFactory,
-                                                   Object bean, Method method,
-                                                   List<NatsMessageConverter> converters) {
-    super(connectionFactory, bean, method, converters);
+  public SubscriptionNatsEndpointListenerContainer(NatsListener natsListener, Object bean, Method method) {
+    super(natsListener, bean, method);
   }
 
   @Override
-  public void start(NatsListener natsListener) {
+  public void start() {
 
-    NatsConnectionImpl natsConnectionWrapper = (NatsConnectionImpl) connectionFactory.getConnection(getClientName(natsListener));
+    NatsConnectionImpl natsConnectionWrapper = (NatsConnectionImpl)getConnectionFactory().getConnection(clientName);
     Connection connection = natsConnectionWrapper.getConnection();
 
     Dispatcher dispatcher = connection.createDispatcher(msg -> {

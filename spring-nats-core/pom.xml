@@ -52,11 +52,6 @@
       <artifactId>commons-lang3</artifactId>
     </dependency>
     <dependency>
-      <groupId>org.projectlombok</groupId>
-      <artifactId>lombok</artifactId>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-context</artifactId>
       <scope>provided</scope>
@@ -67,36 +62,28 @@
       <optional>true</optional>
     </dependency>
     <dependency>
+      <groupId>com.github.krraghavan</groupId>
+      <artifactId>spring-boot-nats-test</artifactId>
+      <version>${spring-nats.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.springframework</groupId>
       <artifactId>spring-test</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.testng</groupId>
       <artifactId>testng</artifactId>
-      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>io.projectreactor</groupId>
       <artifactId>reactor-core</artifactId>
-      <version>3.2.3.RELEASE</version>
       <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>berlin.yuna</groupId>
       <artifactId>nats-streaming-server-embedded</artifactId>
-      <version>0.4.5</version>
       <scope>test</scope>
-      <exclusions>
-        <exclusion>
-          <artifactId>spring-boot-starter-test</artifactId>
-          <groupId>org.springframework.boot</groupId>
-        </exclusion>
-      </exclusions>
     </dependency>
   </dependencies>
-  <properties>
-    <jackson-databind.version>2.9.7</jackson-databind.version>
-  </properties>
-
 </project>

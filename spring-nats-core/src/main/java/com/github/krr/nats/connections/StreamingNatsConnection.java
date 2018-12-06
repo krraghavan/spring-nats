@@ -1,9 +1,9 @@
 package com.github.krr.nats.connections;
 
+import com.github.krr.nats.exceptions.MessagePublishingException;
 import com.github.krr.nats.decorators.NatsConnection;
 import com.github.krr.nats.decorators.NatsMessage;
 import com.github.krr.nats.decorators.NatsMessageHandler;
-import com.github.krr.nats.exceptions.MessagePublishingException;
 import io.nats.streaming.StreamingConnection;
 import lombok.Getter;
 import lombok.NonNull;

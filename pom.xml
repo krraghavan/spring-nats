@@ -26,19 +26,26 @@
   <version>0.1.0-SNAPSHOT</version>
 
   <modules>
-    <module>spring-boot-starter-nats</module>
+    <module>nats-spring-boot-starter</module>
     <module>spring-nats-core</module>
+    <module>spring-boot-nats-streaming-example</module>
+    <module>spring-boot-nats-test</module>
   </modules>
   <packaging>pom</packaging>
 
   <properties>
     <spring-nats.version>0.1.0-SNAPSHOT</spring-nats.version>
     <nats.client.version>2.1.2</nats.client.version>
-    <spring.version>5.1.1.RELEASE</spring.version>
+    <spring.version>5.1.3.RELEASE</spring.version>
     <testng.version>6.14.2</testng.version>
     <lombok.version>1.18.4</lombok.version>
     <commons-lang.version>3.8.1</commons-lang.version>
+    <spring.boot.version>2.1.1.RELEASE</spring.boot.version>
+    <jackson-databind.version>2.9.7</jackson-databind.version>
+    <reactor-core.version>3.2.3.RELEASE</reactor-core.version>
+    <nats-streaming-server-embedded.version>0.4.5</nats-streaming-server-embedded.version>
   </properties>
+
 
   <name>Spring NATS Message Broker Support</name>
   <description>Provides connectivity to NATS message brokers using Spring idioms</description>
@@ -134,6 +141,11 @@
         <version>${jackson-databind.version}</version>
       </dependency>
       <dependency>
+        <groupId>io.projectreactor</groupId>
+        <artifactId>reactor-core</artifactId>
+        <version>${reactor-core.version}</version>
+      </dependency>
+      <dependency>
         <groupId>org.projectlombok</groupId>
         <artifactId>lombok</artifactId>
         <version>${lombok.version}</version>
@@ -148,8 +160,26 @@
         <artifactId>testng</artifactId>
         <version>${testng.version}</version>
       </dependency>
+      <dependency>
+        <groupId>berlin.yuna</groupId>
+        <artifactId>nats-streaming-server-embedded</artifactId>
+        <version>${nats-streaming-server-embedded.version}</version>
+        <exclusions>
+          <exclusion>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <groupId>org.springframework.boot</groupId>
+          </exclusion>
+        </exclusions>
+      </dependency>
     </dependencies>
   </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+    </dependency>
+  </dependencies>
 
   <build>
     <plugins>
